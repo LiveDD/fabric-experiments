@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { Link } from 'office-ui-fabric-react/lib/Link';
+import * as React from "react";
+import { Link } from "office-ui-fabric-react/lib/Link";
 import {
   DetailsList,
   Selection,
@@ -8,75 +8,81 @@ import {
   IColumnReorderOptions,
   IDragDropEvents,
   IDragDropContext
-} from 'office-ui-fabric-react/lib/DetailsList';
-import { MarqueeSelection } from 'office-ui-fabric-react/lib/MarqueeSelection';
-import { createListItems, IExampleItem } from '@uifabric/example-data';
-import { TextField, ITextFieldStyles } from 'office-ui-fabric-react/lib/TextField';
-import { Toggle } from 'office-ui-fabric-react/lib/Toggle';
-import { getTheme, mergeStyles } from 'office-ui-fabric-react/lib/Styling';
-import { values } from '@uifabric/utilities';
+} from "office-ui-fabric-react/lib/DetailsList";
+import { MarqueeSelection } from "office-ui-fabric-react/lib/MarqueeSelection";
+import { createListItems, IExampleItem } from "@uifabric/example-data";
+import {
+  TextField,
+  ITextFieldStyles
+} from "office-ui-fabric-react/lib/TextField";
+import { Toggle } from "office-ui-fabric-react/lib/Toggle";
+import { getTheme, mergeStyles } from "office-ui-fabric-react/lib/Styling";
 
 const theme = getTheme();
-const margin = '0 30px 20px 0';
+const margin = "0 30px 20px 0";
 const dragEnterClass = mergeStyles({
   backgroundColor: theme.palette.neutralLight
 });
 const controlWrapperClass = mergeStyles({
-  display: 'flex',
-  flexWrap: 'wrap'
+  display: "flex",
+  flexWrap: "wrap"
 });
 const textFieldStyles: Partial<ITextFieldStyles> = {
   root: { margin: margin },
-  fieldGroup: { maxWidth: '100px' }
+  fieldGroup: { maxWidth: "100px" }
 };
 
-export interface IExampleItemX extends IExampleItem {
-    index: number
-};
+enum Direction {
+  UP,
+  DOWN
+}
 
 export interface IDetailsListDragDropExampleState {
-  items: IExampleItemX[];
+  items: IExampleItem[];
   columns: IColumn[];
   isColumnReorderEnabled: boolean | undefined;
   frozenColumnCountFromStart: string | undefined;
   frozenColumnCountFromEnd: string | undefined;
 }
 
-const placeHolder = {
-    key: 'placeholder'
-} as IExampleItemX;
-
-export class DetailsListDragDropExample extends React.Component<{}, IDetailsListDragDropExampleState> {
+export class DetailsListDragDropExample extends React.Component<
+  {},
+  IDetailsListDragDropExampleState
+> {
   private _selection: Selection;
   private _dragDropEvents: IDragDropEvents;
-  private _draggedItem: IExampleItemX | undefined;
-  private _draggedIndex: number;
+  private _draggedItem: HTMLElement | null;
+  private _draggedItemClone: HTMLElement | null;
+  private _draggedOverItem: HTMLElement | null;
+  private _pointerMoveDirection: Direction;
 
   constructor(props: {}) {
     super(props);
 
     this._selection = new Selection();
     this._dragDropEvents = this._getDragDropEvents();
-    this._draggedIndex = -1;
+    this._draggedItem = null;
+    this._draggedItemClone = null;
+    this._draggedOverItem = null;
+    this._pointerMoveDirection = Direction.DOWN;
     let items = createListItems(10, 0);
-    let index = 0;
-    const itemsX = items.map((item: IExampleItem): IExampleItemX => {
-        const itemX = item as IExampleItemX;
-        itemX.index = index++;
-        return itemX;
-    })
     this.state = {
-      items: itemsX,
+      items: items,
       columns: buildColumns(items, true),
       isColumnReorderEnabled: true,
-      frozenColumnCountFromStart: '1',
-      frozenColumnCountFromEnd: '0'
+      frozenColumnCountFromStart: "1",
+      frozenColumnCountFromEnd: "0"
     };
   }
 
-
   public render(): JSX.Element {
-    const { items, columns, isColumnReorderEnabled, frozenColumnCountFromStart, frozenColumnCountFromEnd } = this.state;
+    const {
+      items,
+      columns,
+      isColumnReorderEnabled,
+      frozenColumnCountFromStart,
+      frozenColumnCountFromEnd
+    } = this.state;
 
     return (
       <div>
@@ -114,7 +120,11 @@ export class DetailsListDragDropExample extends React.Component<{}, IDetailsList
             onItemInvoked={this._onItemInvoked}
             onRenderItemColumn={this._onRenderItemColumn}
             dragDropEvents={this._dragDropEvents}
-            columnReorderOptions={this.state.isColumnReorderEnabled ? this._getColumnReorderOptions() : undefined}
+            columnReorderOptions={
+              this.state.isColumnReorderEnabled
+                ? this._getColumnReorderOptions()
+                : undefined
+            }
             ariaLabelForSelectionColumn="Toggle selection"
             ariaLabelForSelectAllCheckbox="Toggle selection for all items"
             checkButtonAriaLabel="Row checkbox"
@@ -124,7 +134,10 @@ export class DetailsListDragDropExample extends React.Component<{}, IDetailsList
     );
   }
 
-  private _handleColumnReorder = (draggedIndex: number, targetIndex: number) => {
+  private _handleColumnReorder = (
+    draggedIndex: number,
+    targetIndex: number
+  ) => {
     const draggedItems = this.state.columns[draggedIndex];
     const newColumns: IColumn[] = [...this.state.columns];
 
@@ -136,114 +149,211 @@ export class DetailsListDragDropExample extends React.Component<{}, IDetailsList
 
   private _getColumnReorderOptions(): IColumnReorderOptions {
     return {
-      frozenColumnCountFromStart: parseInt(this.state.frozenColumnCountFromStart as string, 10),
-      frozenColumnCountFromEnd: parseInt(this.state.frozenColumnCountFromEnd as string, 10),
+      frozenColumnCountFromStart: parseInt(
+        this.state.frozenColumnCountFromStart as string,
+        10
+      ),
+      frozenColumnCountFromEnd: parseInt(
+        this.state.frozenColumnCountFromEnd as string,
+        10
+      ),
       handleColumnReorder: this._handleColumnReorder
     };
   }
 
   private _validateNumber(value: string): string {
-    return isNaN(Number(value)) ? `The value should be a number, actual is ${value}.` : '';
+    return isNaN(Number(value))
+      ? `The value should be a number, actual is ${value}.`
+      : "";
   }
 
-  private _onChangeStartCountText = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, text: string | undefined): void => {
+  private _onChangeStartCountText = (
+    event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>,
+    text: string | undefined
+  ): void => {
     this.setState({ frozenColumnCountFromStart: text });
   };
 
-  private _onChangeEndCountText = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, text: string | undefined ): void => {
+  private _onChangeEndCountText = (
+    event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>,
+    text: string | undefined
+  ): void => {
     this.setState({ frozenColumnCountFromEnd: text });
   };
 
-  private _onChangeColumnReorderEnabled = (ev: React.MouseEvent<HTMLElement>, checked: boolean| undefined): void => {
+  private _onChangeColumnReorderEnabled = (
+    ev: React.MouseEvent<HTMLElement>,
+    checked: boolean | undefined
+  ): void => {
     this.setState({ isColumnReorderEnabled: checked });
   };
 
   private _getDragDropEvents(): IDragDropEvents {
     return {
-      canDrop: (dropContext?: IDragDropContext, dragContext?: IDragDropContext) => {
+      canDrop: (
+        _?: IDragDropContext,
+        _1?: IDragDropContext
+      ) => {
         return true;
       },
-      canDrag: (item?: any) => {
+      canDrag: (_?: any) => {
         return true;
       },
-      onDragEnter: (item?: any, event?: DragEvent) => {
-        const items = this.state.items.reduce((values ,value) => {
-            if (value.key !== 'placeholder') values.push(value as IExampleItemX); 
-            return values
-        } , [] as IExampleItemX[])
-        let index = 0;
-        const preItems = items.slice(0, item.index), postItems = items.slice(item.index, items.length);
-        placeHolder.index = item.index;
-        const newItems = [
-            ...preItems,
-            placeHolder,
-            ...postItems
-        ].map(_item => {
-            _item.index = index++;
-            return _item;
-        });
-        console.log(items.length, preItems.length, postItems.length, newItems);
-        this.setState({
-            items: newItems
-        })
+      onDragEnter: (_?: any, event?: DragEvent) => {
+        console.log("onDragEnter");
+        const draggedItem = this._draggedItem;
+        const draggedItemClone = this._draggedItemClone;
+        if (draggedItem && draggedItem.style.display !== "none") {
+          if (!draggedItem.parentElement) {
+            console.error("draggedItem.parentElement in not available.");
+          } else if (!draggedItemClone) {
+            console.error("draggedItemClone");
+          } else {
+            draggedItem.style.display = "none";
+            draggedItem.parentElement.insertBefore(
+              draggedItemClone,
+              draggedItem.nextElementSibling
+            );
+          }
+        }
+
+        const currentTarget = (event && event.currentTarget && (event.currentTarget as HTMLElement).parentElement) || null;
+        if (event && currentTarget != draggedItem) {
+          console.log("set draggedOverItem");
+          this._draggedOverItem = currentTarget;
+          this._pointerMoveDirection = getPointerDirection(
+            this._draggedItemClone,
+            event.pageY
+          );
+
+          if (this._pointerMoveDirection === Direction.DOWN) {
+            if (!this._draggedOverItem) {
+              console.error("this._draggedOverItem is not available");
+            } else if (!this._draggedOverItem.parentElement) {
+              console.error(
+                "this._draggedOverItem.parentElement is not available"
+              );
+            } else if (!draggedItemClone) {
+              console.error("draggedItemClone is not available");
+            } else {
+              this._draggedOverItem.parentElement.insertBefore(
+                draggedItemClone,
+                this._draggedOverItem.nextElementSibling
+              );
+            }
+          } else {
+            if (!this._draggedOverItem) {
+              console.error("this._draggedOverItem is not available");
+            } else if (!draggedItemClone) {
+              console.error("draggedItemClone is not available");
+            } else if (!this._draggedOverItem.parentElement) {
+              console.error(
+                "this._draggedOverItem.parentElement is not available"
+              );
+            } else {
+              this._draggedOverItem.parentElement.insertBefore(
+                draggedItemClone,
+                this._draggedOverItem
+              );
+            }
+          }
+        }
+
         // return string is the css classes that will be added to the entering element.
         return dragEnterClass;
       },
       onDragLeave: (item?: any, event?: DragEvent) => {
-        let items = this.state.items;
-        items = items.reduce((values ,value) => {
-            if (value.key !== 'placeholder') values.push(value as IExampleItemX); 
-            return values
-        } , [] as IExampleItemX[])
-        this.setState({
-            items
-        })
+        console.log("onDragLeave");
+        console.log('event.currentTarget', event && event.currentTarget);
+        if (event && event.currentTarget && (event.currentTarget as HTMLElement).parentNode === this._draggedOverItem) {
+          this._draggedOverItem = null;
+        }
+
         return;
       },
-      onDrop: (item?: any, event?: DragEvent) => {
-        if (this._draggedItem) {
-          this._insertBeforeItem(item);
+      onDragStart: (_?: any, _1?: number, _2?: any[], event?: MouseEvent) => {
+        console.log("onDragStart");
+        if (event && event.currentTarget instanceof HTMLElement) {
+          //set draggedItem variable and a clone of it.
+          this._draggedItem = event.currentTarget.parentElement;
+          this._draggedItemClone = this._draggedItem && this._draggedItem.cloneNode(
+            true
+          ) as HTMLElement || null;
         }
       },
-      onDragStart: (item?: any, itemIndex?: number, selectedItems?: any[], event?: MouseEvent) => {
-        this._draggedItem = item;
-        this._draggedIndex = itemIndex!;
-      },
-      onDragEnd: (item?: any, event?: DragEvent) => {
-        this._draggedItem = undefined;
-        this._draggedIndex = -1;
+      onDragEnd: (_?: any, _1?: DragEvent) => {
+        console.log("onDragEnd");
+        if (this._draggedItem) {
+          if (!this._draggedItem.parentElement) {
+            console.error("this._draggedItem.parentElement is not available");
+          } else if (this._draggedOverItem) {
+            this._draggedItem.parentElement.removeChild(this._draggedItem);
+          } else if (!this._draggedItemClone) {
+            console.error("this._draggedItemClone is not available");
+          } else {
+            try {
+              this._draggedItem.parentElement.removeChild(
+                this._draggedItemClone
+              );
+              this._draggedItem.style.display = "";
+            } catch (e) {
+              console.log("clone not added to the DOM yet!");
+            }
+          }
+          this._draggedItem = null;
+          this._draggedItemClone = null;
+        }
       }
     };
   }
 
-  private _onItemInvoked = (item: IExampleItemX): void => {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  private _onItemInvoked = (item: IExampleItem): void => {
     alert(`Item invoked: ${item.name}`);
   };
 
-  private _onRenderItemColumn = (item: IExampleItemX, index: number | undefined, column: IColumn | undefined): JSX.Element | string => {
-    const key = (column && column.key || "") as keyof IExampleItemX;
-    if (key === 'name') {
+  private _onRenderItemColumn = (
+    item: IExampleItem,
+    index: number | undefined,
+    column: IColumn | undefined
+  ): JSX.Element | string => {
+    const key = ((column && column.key) || "") as keyof IExampleItem;
+    if (key === "name") {
       return <Link data-selection-invoke={true}>{item[key]}</Link>;
     }
 
     return item && String(item[key]);
   };
+}
 
-  private _insertBeforeItem(item: IExampleItemX): void {
-    const draggedItems = this._selection.isIndexSelected(this._draggedIndex)
-      ? (this._selection.getSelection() as IExampleItemX[])
-      : [this._draggedItem!];
-
-    const items = this.state.items.filter(itm => draggedItems.indexOf(itm) === -1);
-    let insertIndex = items.indexOf(item);
-
-    // if dragging/dropping on itself, index will be 0.
-    if (insertIndex === -1) {
-      insertIndex = 0;
-    }
-
-    items.splice(insertIndex, 0, ...draggedItems);
-
-    this.setState({ items: items });
+function getPointerDirection(
+  draggedItemClone: HTMLElement | null,
+  dragOverEventYPosition: number
+): Direction {
+  if (draggedItemClone) {
+    return draggedItemClone.getBoundingClientRect().top < dragOverEventYPosition
+      ? Direction.DOWN
+      : Direction.UP;
   }
+  return Direction.DOWN;
 }
