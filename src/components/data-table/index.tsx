@@ -10,7 +10,6 @@ import {
   IDragDropContext,
   SelectionMode
 } from "office-ui-fabric-react/lib/DetailsList";
-import { MarqueeSelection } from "office-ui-fabric-react/lib/MarqueeSelection";
 import { createListItems, IExampleItem } from "@uifabric/example-data";
 import {
   TextField,
