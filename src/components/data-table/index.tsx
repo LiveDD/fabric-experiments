@@ -51,6 +51,7 @@ export class DetailsListDragDropExample extends React.Component<
 > {
   private _selection: Selection;
   private _dragDropEvents: IDragDropEvents;
+  private _draggedItemIndex = -1;
   private _draggedItem: HTMLElement | null;
   private _pivot: HTMLElement | null;
   private _droppedCorrect: boolean;
@@ -112,25 +113,25 @@ export class DetailsListDragDropExample extends React.Component<
             styles={textFieldStyles}
           />
         </div>
-          <DetailsList
-            setKey="items"
-            items={items}
-            columns={columns}
-            selection={this._selection}
-            selectionPreservedOnEmptyClick={true}
-            selectionMode={SelectionMode.single}
-            onItemInvoked={this._onItemInvoked}
-            onRenderItemColumn={this._onRenderItemColumn}
-            dragDropEvents={this._dragDropEvents}
-            columnReorderOptions={
-              this.state.isColumnReorderEnabled
-                ? this._getColumnReorderOptions()
-                : undefined
-            }
-            ariaLabelForSelectionColumn="Toggle selection"
-            ariaLabelForSelectAllCheckbox="Toggle selection for all items"
-            checkButtonAriaLabel="Row checkbox"
-          />
+        <DetailsList
+          setKey="items"
+          items={items}
+          columns={columns}
+          selection={this._selection}
+          selectionPreservedOnEmptyClick={true}
+          selectionMode={SelectionMode.single}
+          onItemInvoked={this._onItemInvoked}
+          onRenderItemColumn={this._onRenderItemColumn}
+          dragDropEvents={this._dragDropEvents}
+          columnReorderOptions={
+            this.state.isColumnReorderEnabled
+              ? this._getColumnReorderOptions()
+              : undefined
+          }
+          ariaLabelForSelectionColumn="Toggle selection"
+          ariaLabelForSelectAllCheckbox="Toggle selection for all items"
+          checkButtonAriaLabel="Row checkbox"
+        />
       </div>
     );
   }
@@ -198,64 +199,76 @@ export class DetailsListDragDropExample extends React.Component<
         return true;
       },
       onDragEnter: (_?: any, event?: DragEvent) => {
-        const currentTarget = (event!.currentTarget! as HTMLElement)
-          .parentElement!;
-        this._draggedOverItem = currentTarget;
+        this._draggedOverItem = (event!
+          .currentTarget! as HTMLElement).parentElement!;
         this._pointerMoveDirection = getPointerDirection(
           this._draggedItem,
           event!.pageY
         );
 
         if (this._pointerMoveDirection === Direction.DOWN) {
-          this._draggedOverItem!.parentElement!.insertBefore(
+          this._draggedOverItem.parentElement!.insertBefore(
             this._draggedItem!,
-            this._draggedOverItem!.nextElementSibling
+            this._draggedOverItem.nextElementSibling
           );
         } else {
-          this._draggedOverItem!.parentElement!.insertBefore(
+          this._draggedOverItem.parentElement!.insertBefore(
             this._draggedItem!,
-            this._draggedOverItem!
+            this._draggedOverItem
           );
         }
 
         // return string is the css classes that will be added to the entering element.
         return dragEnterClass;
       },
-      onDragLeave: (_?: any, _1?: DragEvent) => {
-        return;
-      },
-      onDragStart: (_?: any, _1?: number, _2?: any[], event?: MouseEvent) => {
-        if (event!.currentTarget instanceof HTMLElement) {
-          this._droppedCorrect = false;
-          this._draggedItem = event!.currentTarget.parentElement;
-          this._pivot = document.createElement("div");
-          this._pivot.setAttribute("id", "pivot");
 
-          this._draggedItem!.parentElement!.insertBefore(
-            this._pivot,
-            this._draggedItem!.nextElementSibling
-          );
-          this._pivot.style.display = "none";
-        }
+      onDragStart: (
+        _?: any,
+        index?: number,
+        _2?: any[],
+        event?: MouseEvent
+      ) => {
+        this._draggedItemIndex = index!;
+        this._droppedCorrect = false;
+        this._draggedItem = (event!
+          .currentTarget as HTMLElement).parentElement!;
+        this._pivot = document.createElement("div");
+        this._pivot.setAttribute("id", "pivot");
+
+        this._draggedItem!.parentElement!.insertBefore(
+          this._pivot,
+          this._draggedItem!.nextElementSibling
+        );
+        this._pivot.style.display = "none";
       },
       onDragEnd: (_?: any, _1?: DragEvent) => {
         if (this._draggedItem) {
           try {
             if (!this._droppedCorrect) {
-              this._draggedItem!.parentElement!.insertBefore(
+              this._draggedItem.parentElement!.insertBefore(
                 this._draggedItem,
                 this._pivot
               );
             }
-            this._draggedItem!.parentElement!.removeChild(this._pivot!);
+            this._draggedItem.parentElement!.removeChild(this._pivot!);
           } catch (e) {
             console.log("pivot not added to the DOM yet!");
           }
-          this._draggedItem = null;
-          this._pivot = null;
+
+          const items = this.state.items.filter(
+            (_, index: number) => index !== this._draggedItemIndex!
+          );
+          const droppedAt = Array.from(
+            this._draggedItem.parentElement!.childNodes
+          ).indexOf(this._draggedItem);
+          items.splice(droppedAt, 0, this.state.items[this._draggedItemIndex!]);
+          this.setState({ items });
         }
+        this._draggedItem = null;
+        this._pivot = null;
       },
       onDrop: () => {
+
         this._droppedCorrect = true;
       }
     };
