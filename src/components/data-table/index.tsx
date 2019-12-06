@@ -7,7 +7,8 @@ import {
   buildColumns,
   IColumnReorderOptions,
   IDragDropEvents,
-  IDragDropContext
+  IDragDropContext,
+  SelectionMode
 } from "office-ui-fabric-react/lib/DetailsList";
 import { MarqueeSelection } from "office-ui-fabric-react/lib/MarqueeSelection";
 import { createListItems, IExampleItem } from "@uifabric/example-data";
@@ -52,7 +53,8 @@ export class DetailsListDragDropExample extends React.Component<
   private _selection: Selection;
   private _dragDropEvents: IDragDropEvents;
   private _draggedItem: HTMLElement | null;
-  private _draggedItemClone: HTMLElement | null;
+  private _pivot: HTMLElement | null;
+  private _droppedCorrect: boolean;
   private _draggedOverItem: HTMLElement | null;
   private _pointerMoveDirection: Direction;
 
@@ -62,8 +64,9 @@ export class DetailsListDragDropExample extends React.Component<
     this._selection = new Selection();
     this._dragDropEvents = this._getDragDropEvents();
     this._draggedItem = null;
-    this._draggedItemClone = null;
+    this._pivot = null;
     this._draggedOverItem = null;
+    this._droppedCorrect = false;
     this._pointerMoveDirection = Direction.DOWN;
     let items = createListItems(10, 0);
     this.state = {
@@ -110,13 +113,13 @@ export class DetailsListDragDropExample extends React.Component<
             styles={textFieldStyles}
           />
         </div>
-        <MarqueeSelection selection={this._selection}>
           <DetailsList
             setKey="items"
             items={items}
             columns={columns}
             selection={this._selection}
             selectionPreservedOnEmptyClick={true}
+            selectionMode={SelectionMode.single}
             onItemInvoked={this._onItemInvoked}
             onRenderItemColumn={this._onRenderItemColumn}
             dragDropEvents={this._dragDropEvents}
@@ -129,7 +132,6 @@ export class DetailsListDragDropExample extends React.Component<
             ariaLabelForSelectAllCheckbox="Toggle selection for all items"
             checkButtonAriaLabel="Row checkbox"
           />
-        </MarqueeSelection>
       </div>
     );
   }
@@ -190,143 +192,75 @@ export class DetailsListDragDropExample extends React.Component<
 
   private _getDragDropEvents(): IDragDropEvents {
     return {
-      canDrop: (
-        _?: IDragDropContext,
-        _1?: IDragDropContext
-      ) => {
+      canDrop: (_?: IDragDropContext, _1?: IDragDropContext) => {
         return true;
       },
       canDrag: (_?: any) => {
         return true;
       },
       onDragEnter: (_?: any, event?: DragEvent) => {
-        console.log("onDragEnter");
-        const draggedItem = this._draggedItem;
-        const draggedItemClone = this._draggedItemClone;
-        if (draggedItem && draggedItem.style.display !== "none") {
-          if (!draggedItem.parentElement) {
-            console.error("draggedItem.parentElement in not available.");
-          } else if (!draggedItemClone) {
-            console.error("draggedItemClone");
-          } else {
-            draggedItem.style.display = "none";
-            draggedItem.parentElement.insertBefore(
-              draggedItemClone,
-              draggedItem.nextElementSibling
-            );
-          }
-        }
+        const currentTarget = (event!.currentTarget! as HTMLElement)
+          .parentElement!;
+        this._draggedOverItem = currentTarget;
+        this._pointerMoveDirection = getPointerDirection(
+          this._draggedItem,
+          event!.pageY
+        );
 
-        const currentTarget = (event && event.currentTarget && (event.currentTarget as HTMLElement).parentElement) || null;
-        if (event && currentTarget != draggedItem) {
-          console.log("set draggedOverItem");
-          this._draggedOverItem = currentTarget;
-          this._pointerMoveDirection = getPointerDirection(
-            this._draggedItemClone,
-            event.pageY
+        if (this._pointerMoveDirection === Direction.DOWN) {
+          this._draggedOverItem!.parentElement!.insertBefore(
+            this._draggedItem!,
+            this._draggedOverItem!.nextElementSibling
           );
-
-          if (this._pointerMoveDirection === Direction.DOWN) {
-            if (!this._draggedOverItem) {
-              console.error("this._draggedOverItem is not available");
-            } else if (!this._draggedOverItem.parentElement) {
-              console.error(
-                "this._draggedOverItem.parentElement is not available"
-              );
-            } else if (!draggedItemClone) {
-              console.error("draggedItemClone is not available");
-            } else {
-              this._draggedOverItem.parentElement.insertBefore(
-                draggedItemClone,
-                this._draggedOverItem.nextElementSibling
-              );
-            }
-          } else {
-            if (!this._draggedOverItem) {
-              console.error("this._draggedOverItem is not available");
-            } else if (!draggedItemClone) {
-              console.error("draggedItemClone is not available");
-            } else if (!this._draggedOverItem.parentElement) {
-              console.error(
-                "this._draggedOverItem.parentElement is not available"
-              );
-            } else {
-              this._draggedOverItem.parentElement.insertBefore(
-                draggedItemClone,
-                this._draggedOverItem
-              );
-            }
-          }
+        } else {
+          this._draggedOverItem!.parentElement!.insertBefore(
+            this._draggedItem!,
+            this._draggedOverItem!
+          );
         }
 
         // return string is the css classes that will be added to the entering element.
         return dragEnterClass;
       },
-      onDragLeave: (item?: any, event?: DragEvent) => {
-        console.log("onDragLeave");
-        console.log('event.currentTarget', event && event.currentTarget);
-        if (event && event.currentTarget && (event.currentTarget as HTMLElement).parentNode === this._draggedOverItem) {
-          this._draggedOverItem = null;
-        }
-
+      onDragLeave: (_?: any, _1?: DragEvent) => {
         return;
       },
       onDragStart: (_?: any, _1?: number, _2?: any[], event?: MouseEvent) => {
-        console.log("onDragStart");
-        if (event && event.currentTarget instanceof HTMLElement) {
-          //set draggedItem variable and a clone of it.
-          this._draggedItem = event.currentTarget.parentElement;
-          this._draggedItemClone = this._draggedItem && this._draggedItem.cloneNode(
-            true
-          ) as HTMLElement || null;
+        if (event!.currentTarget instanceof HTMLElement) {
+          this._droppedCorrect = false;
+          this._draggedItem = event!.currentTarget.parentElement;
+          this._pivot = document.createElement("div");
+          this._pivot.setAttribute("id", "pivot");
+
+          this._draggedItem!.parentElement!.insertBefore(
+            this._pivot,
+            this._draggedItem!.nextElementSibling
+          );
+          this._pivot.style.display = "none";
         }
       },
       onDragEnd: (_?: any, _1?: DragEvent) => {
-        console.log("onDragEnd");
         if (this._draggedItem) {
-          if (!this._draggedItem.parentElement) {
-            console.error("this._draggedItem.parentElement is not available");
-          } else if (this._draggedOverItem) {
-            this._draggedItem.parentElement.removeChild(this._draggedItem);
-          } else if (!this._draggedItemClone) {
-            console.error("this._draggedItemClone is not available");
-          } else {
-            try {
-              this._draggedItem.parentElement.removeChild(
-                this._draggedItemClone
+          try {
+            if (!this._droppedCorrect) {
+              this._draggedItem!.parentElement!.insertBefore(
+                this._draggedItem,
+                this._pivot
               );
-              this._draggedItem.style.display = "";
-            } catch (e) {
-              console.log("clone not added to the DOM yet!");
             }
+            this._draggedItem!.parentElement!.removeChild(this._pivot!);
+          } catch (e) {
+            console.log("pivot not added to the DOM yet!");
           }
           this._draggedItem = null;
-          this._draggedItemClone = null;
+          this._pivot = null;
         }
+      },
+      onDrop: () => {
+        this._droppedCorrect = true;
       }
     };
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   private _onItemInvoked = (item: IExampleItem): void => {
     alert(`Item invoked: ${item.name}`);
@@ -347,11 +281,11 @@ export class DetailsListDragDropExample extends React.Component<
 }
 
 function getPointerDirection(
-  draggedItemClone: HTMLElement | null,
+  draggedItem: HTMLElement | null,
   dragOverEventYPosition: number
 ): Direction {
-  if (draggedItemClone) {
-    return draggedItemClone.getBoundingClientRect().top < dragOverEventYPosition
+  if (draggedItem) {
+    return draggedItem.getBoundingClientRect().top < dragOverEventYPosition
       ? Direction.DOWN
       : Direction.UP;
   }
